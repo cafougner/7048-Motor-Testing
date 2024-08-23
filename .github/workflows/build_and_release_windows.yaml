@@ -1,0 +1,124 @@
+# A lot of this is modified ChatGPT "code".
+name: Build and Release Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number used for the release."
+        required: true
+        default: "1.0.0"
+        type: string
+
+jobs:
+  check-tags:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: sudo apt-get install --upgrade -y gh
+
+      - name: Check for matching tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+            if gh api repos/${{ github.repository }}/git/refs/tags/v${{ github.event.inputs.version }} --silent > /dev/null 2>&1; then
+              echo "A matching tag was found for the given tag."
+              exit 1
+            else
+              echo "There were no tags matching the given tag, the action will continue."
+            fi
+
+  build-windows:
+    needs: check-tags
+    runs-on: windows-latest
+
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        cache: true
+
+    - name: Build app
+      run: | 
+        flutter config --disable-analytics && flutter config --no-cli-animations
+        flutter build windows
+
+    - name: Install dependencies
+      run: choco install -y 7zip
+
+    - name: Create archive
+      run: |
+        ren build\windows\x64\runner\Release "7048 Motor Testing"
+        move "build\windows\x64\runner\7048 Motor Testing" .\
+
+        7z a -ttar "Windows-x86_64.tar" "7048 Motor Testing"
+        7z a -txz "Windows-x86_64.tar.xz" "Windows-x86_64.tar"
+
+        mkdir artifacts
+        move "Windows-x86_64.tar.xz" .\artifacts\
+
+    - name: Upload archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows-x86_64.tar.xz
+        path: artifacts/Windows-x86_64.tar.xz
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Windows archive
+        uses: actions/download-artifact@v4
+        with:
+          name: Windows-x86_64.tar.xz
+
+      - name: Calculate archive hash
+        run: |
+          SHA256_Windows_x86_64=$(sha256sum Windows-x86_64.tar.xz | awk '{ print $1 }')
+          echo "SHA256_Windows_x86_64=${SHA256_Windows_x86_64}" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: sudo apt-get install --upgrade -y gh
+
+      - name: Get comparisons URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_RELEASE=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name' 2>/dev/null || true)
+          if echo $LATEST_RELEASE | grep -q '"message":"Not Found"'; then
+            COMPARISON_URL="https://github.com/${{ github.repository }}/commits/v${{ github.event.inputs.version }}"
+          else
+            COMPARISON_URL="https://github.com/${{ github.repository }}/compare/${LATEST_RELEASE}...v${{ github.event.inputs.version }}"
+          fi
+          echo "COMPARISON_URL=${COMPARISON_URL}" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: Windows-x86_64.tar.xz
+          name: v${{ github.event.inputs.version }}
+          tag_name: v${{ github.event.inputs.version }}
+          prerelease: false
+          draft: false
+          body : |
+            Windows build for version ${{ github.event.inputs.version }}.
+
+            ### Changes:
+            * Added something
+            * Added something else
+
+            **Full Changelog**: ${{ env.COMPARISON_URL }}
+
+            * Windows-x86_64.tar.xz SHA256: `${{ env.SHA256_Windows_x86_64 }}`

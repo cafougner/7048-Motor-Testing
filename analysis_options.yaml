@@ -1,0 +1,30 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    todo: warning
+
+  language:
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    - always_use_package_imports
+    - unawaited_futures
+    - combinators_ordering
+    - discarded_futures
+    - directives_ordering
+    - eol_at_end_of_file
+    - prefer_double_quotes
+
+    - prefer_final_fields
+    - prefer_final_in_for_each
+    - prefer_final_locals
+    - prefer_final_parameters
+
+    - sort_child_properties_last
+    - sort_constructors_first
+    - sort_unnamed_constructors_first
+
+    - use_decorated_box

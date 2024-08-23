@@ -1,0 +1,37 @@
+name: frc_7048_motor_testing
+description: "A Windows Flutter application for running and graphing motor tests for FRC."
+
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ">=3.5.1 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  path: ^1.9.0
+  logger: ^2.4.0
+  path_provider: ^2.1.4
+
+  window_manager: ^0.4.2
+  shared_preferences: ^2.2.3
+
+  # TODO: Change back to nt4: ^x.x.x when updated past 1.3.3
+  nt4:
+    git:
+      url: https://github.com/mjansen4857/nt4.git
+
+  fl_chart: ^0.68.0
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - lib/resources/icons/openDialog.png
+    - lib/resources/icons/saveGraphs.png
